@@ -1,0 +1,65 @@
+﻿@page "/"
+@attribute [StreamRendering]
+
+@using System.Text.Json
+@using Polly.Timeout
+@inject PeopleApiClient PeopleApi
+@inject ILogger<Home> Logger
+
+<PageTitle>People</PageTitle>
+
+<h1>People</h1>
+
+@if (errorMessage is not null)
+{
+    <p class="alert alert-danger" role="alert">@errorMessage</p>
+}
+else if (people is null)
+{
+    <p role="status"><em>Loading people...</em></p>
+}
+else if (people.Length == 0)
+{
+    <p>No people found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">ID</th>
+                <th scope="col">First name</th>
+                <th scope="col">Last name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var person in people)
+            {
+                <tr @key="person.PersonId">
+                    <td>@person.PersonId</td>
+                    <td>@person.FirstName</td>
+                    <td>@person.LastName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private Person[]? people;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            people = await PeopleApi.GetPeopleAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException
+            or OperationCanceledException or TimeoutRejectedException)
+        {
+            Logger.LogError(exception, "Failed to load people from the API.");
+            errorMessage = "Unable to load people. Please try again later.";
+        }
+    }
+}
